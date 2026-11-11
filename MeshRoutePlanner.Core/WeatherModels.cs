@@ -64,7 +64,29 @@ public class AtmosphericConditions
     public double? UpperRefractivityN { get; init; }
     public double? RefractivityGradientPerKm { get; init; }
     public DuctingLikelihood Likelihood { get; init; }
+
+    /// <summary>
+    /// Effective Earth-radius factor derived from the refractivity gradient (k = 157 / (157 +
+    /// dN/dh)). Standard atmosphere is ~1.333. Null when the gradient is unavailable or so steep
+    /// (approaching the ducting threshold) that this simplified single-layer formula breaks down.
+    /// </summary>
+    public double? KFactor { get; init; }
+
+    /// <summary>Antenna height (metres above ground) assumed for the horizon estimates below.</summary>
+    public double AssumedAntennaHeightM { get; init; }
+
+    /// <summary>Radio horizon distance for one end of a link at the assumed antenna height, under current conditions.</summary>
+    public double? RadioHorizonKm { get; init; }
+
+    /// <summary>The same horizon distance under the standard atmosphere (k = 4/3), for comparison.</summary>
+    public double StandardRadioHorizonKm { get; init; }
+
+    /// <summary>How much farther (positive) or shorter (negative) the current horizon is versus standard, in percent.</summary>
+    public double? HorizonExtensionPercent { get; init; }
+
     public string Note { get; init; } =
         "Self-computed from Open-Meteo weather data, not a validated propagation forecast. " +
-        "Treat as a rough hint, not a confirmed effect on any specific route.";
+        "Treat as a rough hint, not a confirmed effect on any specific route. The k-factor and " +
+        "horizon figures use a single-layer surface-to-850hPa approximation and an assumed " +
+        "antenna height, not the real terrain or mast height.";
 }

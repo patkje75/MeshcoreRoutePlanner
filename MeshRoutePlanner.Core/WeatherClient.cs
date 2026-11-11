@@ -17,6 +17,15 @@ public class WeatherClient
 {
     private static readonly TimeSpan Ttl = TimeSpan.FromMinutes(15);
 
+    /// <summary>Standard-atmosphere effective Earth-radius factor (dN/dh = -39 N-units/km).</summary>
+    private const double StandardKFactor = 4.0 / 3.0;
+
+    /// <summary>Radio horizon formula constant, for height in metres and distance in km (d = 3.57 * sqrt(k*h)).</summary>
+    private const double HorizonConstant = 3.57;
+
+    /// <summary>Default assumed antenna height above ground when the caller doesn't supply one.</summary>
+    public const double DefaultAntennaHeightM = 10.0;
+
     private readonly HttpClient _http;
     private readonly IMemoryCache? _cache;
 
@@ -30,9 +39,10 @@ public class WeatherClient
             _http.DefaultRequestHeaders.UserAgent.ParseAdd("MeshRoutePlanner/0.1 (+personal route-finding tool)");
     }
 
-    public async Task<AtmosphericConditions?> GetConditionsAsync(double lat, double lon, CancellationToken ct = default)
+    public async Task<AtmosphericConditions?> GetConditionsAsync(
+        double lat, double lon, double antennaHeightM = DefaultAntennaHeightM, CancellationToken ct = default)
     {
-        var key = $"wx:{lat.ToString("F2", CultureInfo.InvariantCulture)}:{lon.ToString("F2", CultureInfo.InvariantCulture)}";
+        var key = $"wx:{lat.ToString("F2", CultureInfo.InvariantCulture)}:{lon.ToString("F2", CultureInfo.InvariantCulture)}:{antennaHeightM.ToString("F1", CultureInfo.InvariantCulture)}";
         if (_cache is not null && _cache.TryGetValue(key, out AtmosphericConditions? cached))
             return cached;
 
@@ -47,12 +57,12 @@ public class WeatherClient
         if (response?.Current is null)
             return null;
 
-        var result = BuildConditions(lat, lon, response);
+        var result = BuildConditions(lat, lon, antennaHeightM, response);
         _cache?.Set(key, result, Ttl);
         return result;
     }
 
-    private static AtmosphericConditions BuildConditions(double lat, double lon, OpenMeteoResponse response)
+    private static AtmosphericConditions BuildConditions(double lat, double lon, double antennaHeightM, OpenMeteoResponse response)
     {
         var current = response.Current!;
         var surfaceTempK = current.TemperatureC + 273.15;
@@ -86,6 +96,24 @@ public class WeatherClient
             }
         }
 
+        var standardHorizonKm = HorizonConstant * Math.Sqrt(StandardKFactor * antennaHeightM);
+        double? kFactor = null;
+        double? radioHorizonKm = null;
+        double? horizonExtensionPercent = null;
+
+        if (gradient is not null)
+        {
+            // k = 157 / (157 + dN/dh): blows up as dN/dh approaches -157 (the ducting threshold),
+            // where this simplified single-layer model stops being meaningful, so bail out near it.
+            var denominator = 157.0 + gradient.Value;
+            if (denominator > 1.0)
+            {
+                kFactor = 157.0 / denominator;
+                radioHorizonKm = HorizonConstant * Math.Sqrt(kFactor.Value * antennaHeightM);
+                horizonExtensionPercent = (radioHorizonKm.Value / standardHorizonKm - 1.0) * 100.0;
+            }
+        }
+
         return new AtmosphericConditions
         {
             Lat = lat,
@@ -98,6 +126,11 @@ public class WeatherClient
             UpperRefractivityN = upperN,
             RefractivityGradientPerKm = gradient,
             Likelihood = likelihood,
+            KFactor = kFactor,
+            AssumedAntennaHeightM = antennaHeightM,
+            RadioHorizonKm = radioHorizonKm,
+            StandardRadioHorizonKm = standardHorizonKm,
+            HorizonExtensionPercent = horizonExtensionPercent,
         };
     }
 

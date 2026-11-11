@@ -322,7 +322,7 @@ async function refreshWeatherPanel() {
   if (token !== weatherRequestToken) return; // superseded by a newer refresh
   weatherContent.innerHTML = `
     <div class="weather-columns">${fromHtml}${toHtml}</div>
-    <p class="note">Self-computed from live weather data (Open-Meteo) — not a validated propagation forecast. Treat as a rough hint, not a confirmed effect on this specific route.</p>`;
+    <p class="note">Self-computed from live weather data (Open-Meteo) — not a validated propagation forecast. The k-factor and radio horizon assume a 10m antenna and a single surface-to-850hPa layer, not real terrain or mast height. Treat all of this as a rough hint, not a confirmed effect on this specific route.</p>`;
 }
 
 async function renderConditionsColumn(label, node) {
@@ -340,6 +340,13 @@ async function renderConditionsColumn(label, node) {
     const c = await res.json();
     const likelihood = weatherLikelihoodLabel(c.likelihood);
     const gradient = c.refractivityGradientPerKm != null ? `${c.refractivityGradientPerKm.toFixed(1)} N/km` : 'unavailable';
+    const kFactor = c.kFactor != null ? c.kFactor.toFixed(2) : 'unavailable';
+    const horizon = c.radioHorizonKm != null
+      ? `${c.radioHorizonKm.toFixed(1)} km (std: ${c.standardRadioHorizonKm.toFixed(1)} km)`
+      : `unavailable (std: ${c.standardRadioHorizonKm.toFixed(1)} km)`;
+    const extension = c.horizonExtensionPercent != null
+      ? `${c.horizonExtensionPercent >= 0 ? '+' : ''}${c.horizonExtensionPercent.toFixed(1)}%`
+      : 'unavailable';
     return `
       <div class="weather-col">
         <h3>${label}: ${title}</h3>
@@ -349,6 +356,9 @@ async function renderConditionsColumn(label, node) {
           <tr><td>Humidity</td><td>${c.surfaceRelativeHumidityPct.toFixed(0)}%</td></tr>
           <tr><td>Pressure</td><td>${c.surfacePressureHpa.toFixed(0)} hPa</td></tr>
           <tr><td>Refractivity gradient</td><td>${gradient}</td></tr>
+          <tr><td>k-factor</td><td>${kFactor}</td></tr>
+          <tr><td>Radio horizon<br><span class="path-preview">(${c.assumedAntennaHeightM}m antenna)</span></td><td>${horizon}</td></tr>
+          <tr><td>vs. standard atmosphere</td><td>${extension}</td></tr>
           <tr><td>Observed</td><td>${relativeTime(c.observedAt)}</td></tr>
         </table>
       </div>`;

@@ -63,9 +63,11 @@ app.MapGet("/api/route", async (
 });
 
 // Sketch/evaluation endpoint for WeatherClient - not yet wired into route results.
-app.MapGet("/api/weather", async (double lat, double lon, WeatherClient client, CancellationToken ct) =>
+app.MapGet("/api/weather", async (
+    double lat, double lon, WeatherClient client, CancellationToken ct,
+    double antennaHeightM = WeatherClient.DefaultAntennaHeightM) =>
 {
-    var conditions = await client.GetConditionsAsync(lat, lon, ct);
+    var conditions = await client.GetConditionsAsync(lat, lon, antennaHeightM, ct);
     return conditions is null
         ? Results.Problem("Weather data unavailable for this location.", statusCode: 502)
         : Results.Ok(conditions);
