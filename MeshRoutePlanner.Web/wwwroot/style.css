@@ -210,6 +210,8 @@ button:disabled { background: var(--border); color: var(--muted); cursor: not-al
   border-radius: 999px;
 }
 
+.badge.observed, .badge.stitched, .badge.computed { cursor: help; }
+
 .badge.observed { background: rgba(63,185,80,0.15); color: var(--good); }
 .badge.stitched { background: rgba(210,153,34,0.15); color: var(--warn); }
 .badge.computed { background: rgba(248,81,73,0.15); color: #f85149; }

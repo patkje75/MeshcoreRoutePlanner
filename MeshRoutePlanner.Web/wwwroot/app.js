@@ -342,6 +342,14 @@ function sourceLabel(source) {
   return { Observed: 'observed', Stitched: 'stitched', Computed: 'computed' }[source] || source.toLowerCase();
 }
 
+function sourceDescription(source) {
+  return {
+    Observed: 'CoreScope has actually seen a packet travel this exact route, end to end.',
+    Stitched: 'No single recorded path covers the whole route, so this was pieced together from multiple observed path fragments that overlap at a shared node.',
+    Computed: 'No recorded path exists for this route at all. It’s derived from pairwise neighbor signal data (reach) instead — plausible, but never confirmed as a real end-to-end route.',
+  }[source] || '';
+}
+
 function renderRoute(route, isBest) {
   const card = document.createElement('div');
   card.className = isBest ? 'route-card best' : 'route-card';
@@ -365,6 +373,7 @@ function renderRoute(route, isBest) {
   const label = sourceLabel(route.source);
   badge.className = `badge ${label}`;
   badge.textContent = label;
+  badge.title = sourceDescription(route.source);
   header.appendChild(badge);
 
   const meta = document.createElement('span');
