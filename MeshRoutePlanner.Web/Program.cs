@@ -5,6 +5,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddMemoryCache();
 builder.Services.AddHttpClient<CoreScopeClient>();
+builder.Services.AddHttpClient<WeatherClient>();
 builder.Services.AddScoped<RouteFinder>();
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
@@ -59,6 +60,15 @@ app.MapGet("/api/route", async (
     }
 
     return Results.Ok(RouteFinder.SelectBest(routes));
+});
+
+// Sketch/evaluation endpoint for WeatherClient - not yet wired into route results.
+app.MapGet("/api/weather", async (double lat, double lon, WeatherClient client, CancellationToken ct) =>
+{
+    var conditions = await client.GetConditionsAsync(lat, lon, ct);
+    return conditions is null
+        ? Results.Problem("Weather data unavailable for this location.", statusCode: 502)
+        : Results.Ok(conditions);
 });
 
 app.Run();
