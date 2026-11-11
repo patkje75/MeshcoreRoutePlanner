@@ -562,7 +562,7 @@ function drawMap(route) {
   const missingCount = route.hops.length - knownHops.length;
   if (missingCount > 0) {
     mapMessage.textContent = `${missingCount} hop${missingCount === 1 ? '' : 's'} on this route `
-      + `${missingCount === 1 ? "isn't" : "aren't"} shown - no known location.`;
+      + `${missingCount === 1 ? "has" : "have"} no known location - bridged with a dashed "?" line between the nearest known points.`;
     mapMessage.hidden = false;
   } else {
     mapMessage.hidden = true;
@@ -570,19 +570,31 @@ function drawMap(route) {
 
   routeLayer = L.layerGroup();
 
-  // Only connect hops that are consecutive AND both known, so a gap in the middle shows as a
-  // break in the line rather than a straight line faking a path across the unknown hop.
-  let segment = [];
-  let prevIndex = null;
+  // Connect every pair of known hops in order. Truly consecutive known hops get a solid line;
+  // when one or more hops in between have no known location, still draw a line straight across
+  // the gap (rather than leaving a break) but mark it dashed with a "?" so it reads as a bridged
+  // approximation, not a confirmed path.
+  let prev = null;
   for (const { hop, i } of knownHops) {
-    if (prevIndex !== null && i !== prevIndex + 1) {
-      if (segment.length > 1) L.polyline(segment, { color: '#58a6ff', weight: 3 }).addTo(routeLayer);
-      segment = [];
+    if (prev !== null) {
+      const latlngs = [[prev.hop.lat, prev.hop.lon], [hop.lat, hop.lon]];
+      const skipped = i - prev.i - 1;
+      if (skipped === 0) {
+        L.polyline(latlngs, { color: '#58a6ff', weight: 3 }).addTo(routeLayer);
+      } else {
+        L.polyline(latlngs, { color: '#58a6ff', weight: 3, dashArray: '6 8' })
+          .bindTooltip(`${skipped} hop${skipped === 1 ? '' : 's'} with unknown location bridged here`)
+          .addTo(routeLayer);
+        const mid = [(prev.hop.lat + hop.lat) / 2, (prev.hop.lon + hop.lon) / 2];
+        L.marker(mid, {
+          icon: L.divIcon({ className: 'unknown-hop-marker', html: '?', iconSize: [18, 18] }),
+        })
+          .bindTooltip(`${skipped} hop${skipped === 1 ? '' : 's'} with unknown location bridged here`)
+          .addTo(routeLayer);
+      }
     }
-    segment.push([hop.lat, hop.lon]);
-    prevIndex = i;
+    prev = { hop, i };
   }
-  if (segment.length > 1) L.polyline(segment, { color: '#58a6ff', weight: 3 }).addTo(routeLayer);
 
   knownHops.forEach(({ hop, i }) => {
     const marker = L.circleMarker([hop.lat, hop.lon], {
