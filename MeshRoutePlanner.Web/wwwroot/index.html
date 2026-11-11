@@ -29,7 +29,8 @@
             <button type="button" data-mode="to">To</button>
           </div>
         </div>
-        <button type="button" id="clearBtn" hidden>Clear</button>
+        <button type="button" id="weatherToggleBtn" class="toolbar-btn">Conditions</button>
+        <button type="button" id="clearBtn" class="toolbar-btn" hidden>Clear</button>
       </div>
       <p id="mapHint" class="map-hint">Loading repeaters…</p>
       <p id="mapMessage" class="map-message" hidden></p>
@@ -60,6 +61,19 @@
 
       <section id="status" class="status"></section>
       <section id="results" class="results"></section>
+    </div>
+  </div>
+
+  <div class="control-panel weather-panel" id="weatherPanel" hidden>
+    <div class="panel-header" id="weatherDragHandle">
+      <h1>Atmospheric Conditions</h1>
+      <button type="button" id="weatherCloseBtn" class="panel-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="panel-body">
+      <p class="subtitle">Rough radio-refractivity hint computed from live weather data — not a validated propagation forecast.</p>
+      <div id="weatherContent">
+        <p class="map-hint">Set a From and/or To repeater to see conditions here.</p>
+      </div>
     </div>
   </div>
 
