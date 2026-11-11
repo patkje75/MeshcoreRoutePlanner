@@ -8,6 +8,7 @@
   --accent: #58a6ff;
   --good: #3fb950;
   --warn: #d29922;
+  --bad: #f85149;
 }
 
 * { box-sizing: border-box; }
@@ -47,13 +48,34 @@ html, body {
   resize: both;
 }
 
+.control-panel[hidden] { display: none; }
+
 .panel-header {
   padding: 14px 16px;
   border-bottom: 1px solid var(--border);
   cursor: move;
   user-select: none;
   background: #1c2129;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
+
+.panel-close {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: var(--muted);
+  border: none;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.panel-close:hover { color: var(--text); }
 
 .panel-body {
   padding: 14px 16px 18px;
@@ -216,6 +238,12 @@ button:disabled { background: var(--border); color: var(--muted); cursor: not-al
 .badge.stitched { background: rgba(210,153,34,0.15); color: var(--warn); }
 .badge.computed { background: rgba(248,81,73,0.15); color: #f85149; }
 
+.badge.weather-normal, .badge.weather-enhanced, .badge.weather-ducting, .badge.weather-sub-refraction { cursor: help; }
+.badge.weather-normal { background: rgba(88,166,255,0.15); color: var(--accent); }
+.badge.weather-enhanced { background: rgba(63,185,80,0.15); color: var(--good); }
+.badge.weather-ducting { background: rgba(210,153,34,0.15); color: var(--warn); }
+.badge.weather-sub-refraction { background: rgba(248,81,73,0.15); color: var(--bad); }
+
 .route-meta { color: var(--muted); font-size: 12px; }
 
 .hop-chain {
@@ -274,7 +302,7 @@ button:disabled { background: var(--border); color: var(--muted); cursor: not-al
 
 .pick-mode label { font-size: 12px; color: var(--muted); display: block; margin-bottom: 4px; }
 
-#clearBtn {
+.toolbar-btn {
   width: auto;
   height: auto;
   margin: 0;
@@ -285,7 +313,24 @@ button:disabled { background: var(--border); color: var(--muted); cursor: not-al
   border: 1px solid var(--border);
 }
 
-#clearBtn:hover { border-color: var(--accent); }
+.toolbar-btn:hover { border-color: var(--accent); }
+
+.weather-panel {
+  top: 16px;
+  left: auto;
+  right: 16px;
+  width: 380px;
+  min-width: 300px;
+}
+
+.weather-columns {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.weather-col { flex: 1 1 160px; min-width: 160px; }
+.weather-col h3 { margin: 0 0 6px; font-size: 13px; }
 
 .map-hint { margin: 0 0 8px; font-size: 12px; color: var(--muted); }
 
@@ -295,6 +340,21 @@ button:disabled { background: var(--border); color: var(--muted); cursor: not-al
   margin: 10px 0 0;
   font-size: 13px;
   color: var(--warn);
+}
+
+.unknown-hop-marker {
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--warn);
+  color: #0d1117;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: help;
 }
 
 .node-info-overlay {

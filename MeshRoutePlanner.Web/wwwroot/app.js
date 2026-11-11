@@ -5,20 +5,21 @@ const state = {
   pickMode: 'from',
 };
 
-// Drag the floating control panel around by its header, clamped so it can't be dragged
-// fully off-screen. Pointer Events cover mouse, touch and pen with one code path.
-(function enablePanelDrag() {
-  const panel = document.getElementById('controlPanel');
-  const handle = document.getElementById('panelDragHandle');
+// Drag a floating panel around by its header, clamped so it can't be dragged fully off-screen.
+// Pointer Events cover mouse, touch and pen with one code path. Shared by the control panel and
+// the weather panel.
+function enablePanelDrag(panel, handle) {
   let dragOffsetX = 0, dragOffsetY = 0, dragging = false;
 
   handle.addEventListener('pointerdown', (e) => {
+    if (e.target.closest('button')) return; // let header buttons (e.g. close) work normally
     dragging = true;
     const rect = panel.getBoundingClientRect();
     dragOffsetX = e.clientX - rect.left;
     dragOffsetY = e.clientY - rect.top;
     panel.style.left = rect.left + 'px';
     panel.style.top = rect.top + 'px';
+    panel.style.right = 'auto';
     handle.setPointerCapture(e.pointerId);
   });
 
@@ -36,7 +37,10 @@ const state = {
     dragging = false;
     handle.releasePointerCapture(e.pointerId);
   });
-})();
+}
+
+enablePanelDrag(document.getElementById('controlPanel'), document.getElementById('panelDragHandle'));
+enablePanelDrag(document.getElementById('weatherPanel'), document.getElementById('weatherDragHandle'));
 
 document.querySelectorAll('#byteSizeSelector button').forEach(btn => {
   btn.addEventListener('click', () => {
@@ -165,6 +169,7 @@ function setFrom(node) {
   if (node) fromInput.value = node.name || node.public_key.slice(0, 10);
   updateFindButton();
   updateEndpointHighlights();
+  refreshWeatherPanel();
   if (node) setPickMode('to'); // next map click sets the other end
 }
 
@@ -173,6 +178,7 @@ function setTo(node) {
   if (node) toInput.value = node.name || node.public_key.slice(0, 10);
   updateFindButton();
   updateEndpointHighlights();
+  refreshWeatherPanel();
   if (node) setPickMode('from');
 }
 
@@ -273,10 +279,99 @@ function clearSelection() {
   setStatus('');
   enterOverviewMode();
   if (allRepeatersBounds) map.fitBounds(allRepeatersBounds, { padding: [20, 20] });
+  refreshWeatherPanel();
 }
 
 clearBtn.addEventListener('click', clearSelection);
 initOverviewMap();
+
+// --- Atmospheric conditions panel (sketch) ---------------------------------------------------
+// Self-computed radio-refractivity hint from live weather data, shown for the current From/To
+// nodes. Not a validated propagation forecast - see the disclaimer rendered with every result.
+const weatherPanel = document.getElementById('weatherPanel');
+const weatherContent = document.getElementById('weatherContent');
+const weatherToggleBtn = document.getElementById('weatherToggleBtn');
+const weatherCloseBtn = document.getElementById('weatherCloseBtn');
+
+function weatherLikelihoodLabel(likelihood) {
+  return { SubRefraction: 'sub-refraction', Normal: 'normal', Enhanced: 'enhanced', Ducting: 'ducting' }[likelihood]
+    || String(likelihood).toLowerCase();
+}
+
+function weatherLikelihoodDescription(likelihood) {
+  return {
+    SubRefraction: 'Flatter gradient than standard — range may be reduced versus normal.',
+    Normal: 'Close to the standard atmosphere — typical range expected.',
+    Enhanced: 'Stronger-than-standard bending aloft — some extended range is plausible.',
+    Ducting: 'Gradient is steep enough that a trapping duct may be forming — range could extend well beyond normal, if this holds.',
+  }[likelihood] || '';
+}
+
+let weatherRequestToken = 0;
+
+async function refreshWeatherPanel() {
+  if (weatherPanel.hidden) return;
+  const token = ++weatherRequestToken;
+  weatherContent.innerHTML = '<p class="node-info-loading">Loading…</p>';
+
+  const [fromHtml, toHtml] = await Promise.all([
+    renderConditionsColumn('From', state.from),
+    renderConditionsColumn('To', state.to),
+  ]);
+
+  if (token !== weatherRequestToken) return; // superseded by a newer refresh
+  weatherContent.innerHTML = `
+    <div class="weather-columns">${fromHtml}${toHtml}</div>
+    <p class="note">Self-computed from live weather data (Open-Meteo) — not a validated propagation forecast. The k-factor and radio horizon assume a 10m antenna and a single surface-to-850hPa layer, not real terrain or mast height. Treat all of this as a rough hint, not a confirmed effect on this specific route.</p>`;
+}
+
+async function renderConditionsColumn(label, node) {
+  if (!node) {
+    return `<div class="weather-col"><h3>${label}</h3><p class="map-hint">Not set.</p></div>`;
+  }
+  const title = escapeHtml(node.name || node.public_key.slice(0, 10));
+  if (node.lat == null || node.lon == null) {
+    return `<div class="weather-col"><h3>${label}: ${title}</h3><p class="map-hint">No known location for this node.</p></div>`;
+  }
+
+  try {
+    const res = await fetch(`/api/weather?lat=${node.lat}&lon=${node.lon}`);
+    if (!res.ok) throw new Error(`request failed (${res.status})`);
+    const c = await res.json();
+    const likelihood = weatherLikelihoodLabel(c.likelihood);
+    const gradient = c.refractivityGradientPerKm != null ? `${c.refractivityGradientPerKm.toFixed(1)} N/km` : 'unavailable';
+    const kFactor = c.kFactor != null ? c.kFactor.toFixed(2) : 'unavailable';
+    const horizon = c.radioHorizonKm != null
+      ? `${c.radioHorizonKm.toFixed(1)} km (std: ${c.standardRadioHorizonKm.toFixed(1)} km)`
+      : `unavailable (std: ${c.standardRadioHorizonKm.toFixed(1)} km)`;
+    const extension = c.horizonExtensionPercent != null
+      ? `${c.horizonExtensionPercent >= 0 ? '+' : ''}${c.horizonExtensionPercent.toFixed(1)}%`
+      : 'unavailable';
+    return `
+      <div class="weather-col">
+        <h3>${label}: ${title}</h3>
+        <span class="badge weather-${likelihood}" title="${escapeHtml(weatherLikelihoodDescription(c.likelihood))}">${likelihood}</span>
+        <table class="node-info-table">
+          <tr><td>Temperature</td><td>${c.surfaceTemperatureC.toFixed(1)}°C</td></tr>
+          <tr><td>Humidity</td><td>${c.surfaceRelativeHumidityPct.toFixed(0)}%</td></tr>
+          <tr><td>Pressure</td><td>${c.surfacePressureHpa.toFixed(0)} hPa</td></tr>
+          <tr><td>Refractivity gradient</td><td>${gradient}</td></tr>
+          <tr><td>k-factor</td><td>${kFactor}</td></tr>
+          <tr><td>Radio horizon<br><span class="path-preview">(${c.assumedAntennaHeightM}m antenna)</span></td><td>${horizon}</td></tr>
+          <tr><td>vs. standard atmosphere</td><td>${extension}</td></tr>
+          <tr><td>Observed</td><td>${relativeTime(c.observedAt)}</td></tr>
+        </table>
+      </div>`;
+  } catch (err) {
+    return `<div class="weather-col"><h3>${label}: ${title}</h3><p class="node-info-error">Could not load conditions: ${escapeHtml(err.message)}</p></div>`;
+  }
+}
+
+weatherToggleBtn.addEventListener('click', () => {
+  weatherPanel.hidden = !weatherPanel.hidden;
+  if (!weatherPanel.hidden) refreshWeatherPanel();
+});
+weatherCloseBtn.addEventListener('click', () => { weatherPanel.hidden = true; });
 
 const nodeInfoOverlay = document.getElementById('nodeInfoOverlay');
 const nodeInfoBody = document.getElementById('nodeInfoBody');
@@ -467,7 +562,7 @@ function drawMap(route) {
   const missingCount = route.hops.length - knownHops.length;
   if (missingCount > 0) {
     mapMessage.textContent = `${missingCount} hop${missingCount === 1 ? '' : 's'} on this route `
-      + `${missingCount === 1 ? "isn't" : "aren't"} shown - no known location.`;
+      + `${missingCount === 1 ? "has" : "have"} no known location - bridged with a dashed "?" line between the nearest known points.`;
     mapMessage.hidden = false;
   } else {
     mapMessage.hidden = true;
@@ -475,19 +570,31 @@ function drawMap(route) {
 
   routeLayer = L.layerGroup();
 
-  // Only connect hops that are consecutive AND both known, so a gap in the middle shows as a
-  // break in the line rather than a straight line faking a path across the unknown hop.
-  let segment = [];
-  let prevIndex = null;
+  // Connect every pair of known hops in order. Truly consecutive known hops get a solid line;
+  // when one or more hops in between have no known location, still draw a line straight across
+  // the gap (rather than leaving a break) but mark it dashed with a "?" so it reads as a bridged
+  // approximation, not a confirmed path.
+  let prev = null;
   for (const { hop, i } of knownHops) {
-    if (prevIndex !== null && i !== prevIndex + 1) {
-      if (segment.length > 1) L.polyline(segment, { color: '#58a6ff', weight: 3 }).addTo(routeLayer);
-      segment = [];
+    if (prev !== null) {
+      const latlngs = [[prev.hop.lat, prev.hop.lon], [hop.lat, hop.lon]];
+      const skipped = i - prev.i - 1;
+      if (skipped === 0) {
+        L.polyline(latlngs, { color: '#58a6ff', weight: 3 }).addTo(routeLayer);
+      } else {
+        L.polyline(latlngs, { color: '#58a6ff', weight: 3, dashArray: '6 8' })
+          .bindTooltip(`${skipped} hop${skipped === 1 ? '' : 's'} with unknown location bridged here`)
+          .addTo(routeLayer);
+        const mid = [(prev.hop.lat + hop.lat) / 2, (prev.hop.lon + hop.lon) / 2];
+        L.marker(mid, {
+          icon: L.divIcon({ className: 'unknown-hop-marker', html: '?', iconSize: [18, 18] }),
+        })
+          .bindTooltip(`${skipped} hop${skipped === 1 ? '' : 's'} with unknown location bridged here`)
+          .addTo(routeLayer);
+      }
     }
-    segment.push([hop.lat, hop.lon]);
-    prevIndex = i;
+    prev = { hop, i };
   }
-  if (segment.length > 1) L.polyline(segment, { color: '#58a6ff', weight: 3 }).addTo(routeLayer);
 
   knownHops.forEach(({ hop, i }) => {
     const marker = L.circleMarker([hop.lat, hop.lon], {
