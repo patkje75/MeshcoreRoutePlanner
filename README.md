@@ -33,6 +33,21 @@ dotnet run
 
 Then open the URL printed in the console (e.g. `http://localhost:5299`) in a browser.
 
+### Running in Docker
+
+```bash
+docker compose up --build
+```
+
+or without compose:
+
+```bash
+docker build -t meshrouteplanner .
+docker run -p 8080:8080 meshrouteplanner
+```
+
+Then open `http://localhost:8080`.
+
 ## Project structure
 
 - `MeshRoutePlanner.Core` — class library: CoreScope API client, models, and the route-finding algorithm.
