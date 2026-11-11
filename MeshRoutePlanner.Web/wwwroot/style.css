@@ -8,6 +8,7 @@
   --accent: #58a6ff;
   --good: #3fb950;
   --warn: #d29922;
+  --bad: #f85149;
 }
 
 * { box-sizing: border-box; }
@@ -238,10 +239,10 @@ button:disabled { background: var(--border); color: var(--muted); cursor: not-al
 .badge.computed { background: rgba(248,81,73,0.15); color: #f85149; }
 
 .badge.weather-normal, .badge.weather-enhanced, .badge.weather-ducting, .badge.weather-sub-refraction { cursor: help; }
-.badge.weather-normal { background: rgba(139,148,158,0.15); color: var(--muted); }
-.badge.weather-enhanced { background: rgba(88,166,255,0.15); color: var(--accent); }
-.badge.weather-ducting { background: rgba(63,185,80,0.15); color: var(--good); }
-.badge.weather-sub-refraction { background: rgba(210,153,34,0.15); color: var(--warn); }
+.badge.weather-normal { background: rgba(88,166,255,0.15); color: var(--accent); }
+.badge.weather-enhanced { background: rgba(63,185,80,0.15); color: var(--good); }
+.badge.weather-ducting { background: rgba(210,153,34,0.15); color: var(--warn); }
+.badge.weather-sub-refraction { background: rgba(248,81,73,0.15); color: var(--bad); }
 
 .route-meta { color: var(--muted); font-size: 12px; }
 
