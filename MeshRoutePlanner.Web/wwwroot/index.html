@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MeshCore Route Planner</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <div class="control-panel" id="controlPanel">
+    <div class="panel-header" id="panelDragHandle">
+      <h1>MeshCore Route Planner</h1>
+    </div>
+    <div class="panel-body">
+      <p class="subtitle">Uses historical path data from
+        <a href="https://meshcore.meshat.se" target="_blank" rel="noopener">CoreScope</a>.</p>
+
+      <div class="map-toolbar">
+        <div class="pick-mode">
+          <label>Click a repeater on the map to set</label>
+          <div class="segmented" id="pickModeSelector">
+            <button type="button" data-mode="from" class="active">From</button>
+            <button type="button" data-mode="to">To</button>
+          </div>
+        </div>
+        <button type="button" id="clearBtn" hidden>Clear</button>
+      </div>
+      <p id="mapHint" class="map-hint">Loading repeaters…</p>
+      <p id="mapMessage" class="map-message" hidden></p>
+
+      <section class="search-panel">
+        <div class="search-box">
+          <label for="fromInput">From</label>
+          <input type="text" id="fromInput" placeholder="…or search by name" autocomplete="off">
+          <div class="suggestions" id="fromSuggestions"></div>
+        </div>
+        <div class="search-box">
+          <label for="toInput">To</label>
+          <input type="text" id="toInput" placeholder="…or search by name" autocomplete="off">
+          <div class="suggestions" id="toSuggestions"></div>
+        </div>
+        <button id="findBtn" disabled>Find route</button>
+        <button id="stopBtn" class="stop-btn" hidden>Stop</button>
+      </section>
+
+      <section class="path-format">
+        <label>Path hop format (for pasting into the companion app)</label>
+        <div class="segmented" id="byteSizeSelector">
+          <button type="button" data-bytes="1" class="active">1 byte</button>
+          <button type="button" data-bytes="2">2 bytes</button>
+          <button type="button" data-bytes="3">3 bytes</button>
+        </div>
+      </section>
+
+      <section id="status" class="status"></section>
+      <section id="results" class="results"></section>
+    </div>
+  </div>
+
+  <div id="nodeInfoOverlay" class="node-info-overlay" hidden>
+    <div class="node-info-card">
+      <button type="button" id="nodeInfoClose" class="node-info-close" aria-label="Close">&times;</button>
+      <div id="nodeInfoBody"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

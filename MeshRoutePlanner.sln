@@ -1,0 +1,48 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeshRoutePlanner.Core", "MeshRoutePlanner.Core\MeshRoutePlanner.Core.csproj", "{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MeshRoutePlanner.Web", "MeshRoutePlanner.Web\MeshRoutePlanner.Web.csproj", "{69CB9577-0C52-4693-9FEA-5358C3D8632A}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Debug|x64 = Debug|x64
+		Debug|x86 = Debug|x86
+		Release|Any CPU = Release|Any CPU
+		Release|x64 = Release|x64
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Debug|x64.Build.0 = Debug|Any CPU
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Debug|x86.Build.0 = Debug|Any CPU
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Release|x64.ActiveCfg = Release|Any CPU
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Release|x64.Build.0 = Release|Any CPU
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Release|x86.ActiveCfg = Release|Any CPU
+		{5B8B737C-9C9E-44A3-8FFF-A5B792D63BCF}.Release|x86.Build.0 = Release|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Debug|x64.Build.0 = Debug|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Debug|x86.Build.0 = Debug|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Release|x64.ActiveCfg = Release|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Release|x64.Build.0 = Release|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Release|x86.ActiveCfg = Release|Any CPU
+		{69CB9577-0C52-4693-9FEA-5358C3D8632A}.Release|x86.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
