@@ -6,6 +6,12 @@ It uses historical path and node data from [CoreScope](https://meshcore.meshat.s
 
 A found route can be exported as a comma-separated hex-prefix string, ready to paste into the MeshCore companion app's custom routing path field.
 
+## Screenshots
+
+| Overview map | Pick From / To | Route results |
+|---|---|---|
+| ![Overview map with all repeaters](img/Screen1.png) | ![Picking a From and To repeater on the map](img/Screen2.png) | ![Candidate routes with the best one highlighted and drawn on the map](img/Screen3.png) |
+
 ## Features
 
 - **Map-first picker** — all known repeaters are plotted on a map on load; click one as "From" and another as "To", or search by name.
