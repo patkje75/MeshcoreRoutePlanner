@@ -545,6 +545,20 @@ function selectRoute(idx) {
   drawMap(renderedRoutes[idx]);
 }
 
+function haversineKm(lat1, lon1, lat2, lon2) {
+  const toRad = (deg) => (deg * Math.PI) / 180;
+  const r = 6371; // mean Earth radius, km
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return r * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function formatDistance(km) {
+  return km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`;
+}
+
 function drawMap(route) {
   if (routeLayer) routeLayer.remove();
 
@@ -573,23 +587,33 @@ function drawMap(route) {
   // Connect every pair of known hops in order. Truly consecutive known hops get a solid line;
   // when one or more hops in between have no known location, still draw a line straight across
   // the gap (rather than leaving a break) but mark it dashed with a "?" so it reads as a bridged
-  // approximation, not a confirmed path.
+  // approximation, not a confirmed path. Every segment also gets its straight-line distance.
   let prev = null;
   for (const { hop, i } of knownHops) {
     if (prev !== null) {
       const latlngs = [[prev.hop.lat, prev.hop.lon], [hop.lat, hop.lon]];
+      const mid = [(prev.hop.lat + hop.lat) / 2, (prev.hop.lon + hop.lon) / 2];
+      const distLabel = formatDistance(haversineKm(prev.hop.lat, prev.hop.lon, hop.lat, hop.lon));
       const skipped = i - prev.i - 1;
       if (skipped === 0) {
         L.polyline(latlngs, { color: '#58a6ff', weight: 3 }).addTo(routeLayer);
-      } else {
-        L.polyline(latlngs, { color: '#58a6ff', weight: 3, dashArray: '6 8' })
-          .bindTooltip(`${skipped} hop${skipped === 1 ? '' : 's'} with unknown location bridged here`)
-          .addTo(routeLayer);
-        const mid = [(prev.hop.lat + hop.lat) / 2, (prev.hop.lon + hop.lon) / 2];
         L.marker(mid, {
-          icon: L.divIcon({ className: 'unknown-hop-marker', html: '?', iconSize: [18, 18] }),
+          icon: L.divIcon({ className: 'segment-label', html: distLabel, iconSize: null }),
+          interactive: false,
+        }).addTo(routeLayer);
+      } else {
+        const tooltip = `${skipped} hop${skipped === 1 ? '' : 's'} with unknown location bridged here (~${distLabel} straight-line)`;
+        L.polyline(latlngs, { color: '#58a6ff', weight: 3, dashArray: '6 8' })
+          .bindTooltip(tooltip)
+          .addTo(routeLayer);
+        L.marker(mid, {
+          icon: L.divIcon({
+            className: 'unknown-hop-marker',
+            html: `<div class="uhm-mark">?</div><div class="uhm-dist">${distLabel}</div>`,
+            iconSize: null,
+          }),
         })
-          .bindTooltip(`${skipped} hop${skipped === 1 ? '' : 's'} with unknown location bridged here`)
+          .bindTooltip(tooltip)
           .addTo(routeLayer);
       }
     }

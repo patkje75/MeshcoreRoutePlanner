@@ -342,7 +342,27 @@ button:disabled { background: var(--border); color: var(--muted); cursor: not-al
   color: var(--warn);
 }
 
+.segment-label {
+  background: rgba(22, 27, 34, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  transform: translate(-50%, -50%);
+}
+
 .unknown-hop-marker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: help;
+  transform: translate(-50%, -50%);
+}
+
+.unknown-hop-marker .uhm-mark {
   width: 18px;
   height: 18px;
   display: flex;
@@ -354,7 +374,16 @@ button:disabled { background: var(--border); color: var(--muted); cursor: not-al
   border: 2px solid var(--bg);
   font-size: 12px;
   font-weight: 800;
-  cursor: help;
+}
+
+.unknown-hop-marker .uhm-dist {
+  background: rgba(22, 27, 34, 0.85);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 5px;
+  font-size: 10px;
+  color: var(--text);
+  white-space: nowrap;
 }
 
 .node-info-overlay {
