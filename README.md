@@ -8,9 +8,9 @@ A found route can be exported as a comma-separated hex-prefix string, ready to p
 
 ## Screenshots
 
-| Overview map | Pick From / To | Route results |
-|---|---|---|
-| ![Overview map with all repeaters](img/Screen1.png) | ![Picking a From and To repeater on the map](img/Screen2.png) | ![Candidate routes with the best one highlighted and drawn on the map](img/Screen3.png) |
+| Overview map | Pick From / To | Route results | Conditions (experimental) |
+|---|---|---|---|
+| ![Overview map with all repeaters](img/Screen1.png) | ![Picking a From and To repeater on the map](img/Screen2.png) | ![Candidate routes with the best one highlighted and drawn on the map, including segment distances](img/Screen3.png) | ![The experimental Atmospheric Conditions panel for the From/To nodes](img/Screen4.png) |
 
 ## Features
 
@@ -23,6 +23,7 @@ A found route can be exported as a comma-separated hex-prefix string, ready to p
 - **Copy path** — exports the full hop chain (origin through destination) as 1/2/3-byte hex prefixes for the MeshCore companion app.
 - **Node info popup** — click a hop or map marker to see name, role, public key, coordinates, first/last seen, and a link to the node's CoreScope page.
 - **Cancellable search** — a Stop button aborts an in-progress route search, client and server side.
+- **Atmospheric conditions (experimental)** — a movable "Conditions" panel showing live weather for the From/To nodes, converted into a rough radio-refractivity hint: a ducting-likelihood badge and an effective k-factor / radio horizon estimate vs. the standard atmosphere. This is self-computed from free weather data, not a validated propagation forecast — treat it as a rough, experimental hint, not a confirmed effect on any specific route.
 - Server-side caching of CoreScope API calls to stay gentle on the third-party API.
 
 ## Prerequisites
