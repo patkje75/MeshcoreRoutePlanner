@@ -1,3 +1,6 @@
+using System.Diagnostics;
+using System.Runtime.CompilerServices;
+
 namespace MeshRoutePlanner.Core;
 
 /// <summary>
@@ -20,14 +23,29 @@ public class RouteFinder
         _client = client;
     }
 
-    public async Task<List<RouteCandidate>> FindRoutesAsync(
+    /// <summary>
+    /// Streams the search as it happens: a <see cref="RouteSearchEventType.Progress"/> event after
+    /// every node explored (so a client can show real-time feedback instead of a static "searching…"
+    /// message), followed by exactly one <see cref="RouteSearchEventType.Done"/> event with the final
+    /// result. The search stops early - returning whatever candidates it already found, never nothing -
+    /// if <paramref name="manualStop"/> is signalled (a user-requested stop) or <paramref name="searchBudget"/>
+    /// elapses (a hard cap so a single search can never run away and hammer the upstream API for minutes).
+    /// </summary>
+    public async IAsyncEnumerable<RouteSearchEvent> FindRoutesStreamAsync(
         string fromPubkey,
         string toPubkey,
+        CancellationToken manualStop,
         int maxHops = 6,
         int maxNodesExplored = 60,
         int maxCandidates = 5,
-        CancellationToken ct = default)
+        TimeSpan? searchBudget = null,
+        [EnumeratorCancellation] CancellationToken ct = default)
     {
+        var stopwatch = Stopwatch.StartNew();
+        using var budgetCts = new CancellationTokenSource(searchBudget ?? TimeSpan.FromSeconds(25));
+        using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, manualStop, budgetCts.Token);
+        var combinedCt = linkedCts.Token;
+
         var candidates = new List<RouteCandidate>();
         var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { toPubkey };
 
@@ -38,14 +56,36 @@ public class RouteFinder
         queue.Enqueue(new Frontier(toPubkey, [new RouteHop { Pubkey = toPubkey }], int.MaxValue, null));
 
         var explored = 0;
+        var stopReason = RouteSearchStopReason.Completed;
+
         while (queue.Count > 0 && explored < maxNodesExplored && candidates.Count < maxCandidates)
         {
             var frontier = queue.Dequeue();
             if (frontier.ChainToDestination.Count - 1 >= maxHops)
                 continue;
 
-            var paths = await GetPathsCachedAsync(frontier.Pubkey, ct);
+            NodePathsResponse? paths;
+            try
+            {
+                paths = await GetPathsCachedAsync(frontier.Pubkey, combinedCt);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                // The client is still connected (ct is fine) - only our own manual-stop or
+                // time-budget token fired, so stop here and report whatever was found so far
+                // instead of nothing.
+                stopReason = manualStop.IsCancellationRequested ? RouteSearchStopReason.Stopped : RouteSearchStopReason.TimedOut;
+                break;
+            }
+
             explored++;
+            yield return new RouteSearchEvent
+            {
+                Type = RouteSearchEventType.Progress,
+                ExploredCount = explored,
+                CandidatesFoundCount = candidates.Count,
+                ElapsedSeconds = stopwatch.Elapsed.TotalSeconds,
+            };
             if (paths is null)
                 continue;
 
@@ -98,20 +138,34 @@ public class RouteFinder
             }
         }
 
-        if (candidates.Count == 0)
+        if (stopReason == RouteSearchStopReason.Completed && candidates.Count == 0)
         {
-            var computed = await TryComputedRouteAsync(fromPubkey, toPubkey, maxHops, ct);
-            if (computed is not null)
-                candidates.Add(computed);
+            try
+            {
+                var computed = await TryComputedRouteAsync(fromPubkey, toPubkey, maxHops, combinedCt);
+                if (computed is not null)
+                    candidates.Add(computed);
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                stopReason = manualStop.IsCancellationRequested ? RouteSearchStopReason.Stopped : RouteSearchStopReason.TimedOut;
+            }
         }
 
-        return DeduplicateByHopSequence(candidates)
+        var finalCandidates = DeduplicateByHopSequence(candidates)
             .OrderBy(c => c.Source)
             .ThenBy(c => c.HopCount)
             .ThenByDescending(c => c.MinObservationCount)
             .ThenByDescending(c => c.LastSeen ?? DateTimeOffset.MinValue)
             .Take(maxCandidates)
             .ToList();
+
+        yield return new RouteSearchEvent
+        {
+            Type = RouteSearchEventType.Done,
+            Result = SelectBest(finalCandidates),
+            StopReason = stopReason,
+        };
     }
 
     /// <summary>

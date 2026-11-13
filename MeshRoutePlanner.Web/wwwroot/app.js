@@ -212,6 +212,20 @@ async function initOverviewMap() {
     attribution: '© OpenStreetMap contributors',
   }).addTo(map);
 
+  // While showing a found route, clicking empty map space - not a marker or the route line, both
+  // of which stop this event - toggles all other repeaters on top of the still-visible route, so
+  // the user can pick a new From/To without losing the route or resetting zoom/pan the way Clear does.
+  map.on('click', () => {
+    if (mapMode !== 'route' || !allRepeatersLayer) return;
+    if (map.hasLayer(allRepeatersLayer)) {
+      map.removeLayer(allRepeatersLayer);
+      mapHintEl.textContent = 'Click a route below to show it here, or click the map to see all repeaters.';
+    } else {
+      allRepeatersLayer.addTo(map);
+      mapHintEl.textContent = 'Click a repeater to start a new search, or click the map again to hide them.';
+    }
+  });
+
   try {
     const res = await fetch('/api/repeaters');
     const repeaters = await res.json();
@@ -255,7 +269,7 @@ function enterRouteMode() {
   if (allRepeatersLayer) map.removeLayer(allRepeatersLayer);
   updateEndpointHighlights(); // removes from/to highlight markers (not shown in route mode)
   clearBtn.hidden = false;
-  mapHintEl.textContent = 'Click a route below to show it here.';
+  mapHintEl.textContent = 'Click a route below to show it here, or click the map to see all repeaters.';
 }
 
 function enterOverviewMode() {
@@ -636,51 +650,115 @@ function drawMap(route) {
 
 const findBtn = document.getElementById('findBtn');
 const stopBtn = document.getElementById('stopBtn');
-let searchController = null;
+let activeSearchId = null;
 
-stopBtn.addEventListener('click', () => searchController?.abort());
+// Renders the final `best`/`alternatives` result from a /api/route search. `stopReason` is
+// 'Completed' | 'TimedOut' | 'Stopped' - the latter two mean the search didn't finish exploring
+// everything it could have, so whatever it found is shown but labelled as partial.
+function renderSearchResult(result, stopReason) {
+  const best = result?.best;
+  const alternatives = result?.alternatives || [];
+  const stoppedEarly = stopReason === 'TimedOut' || stopReason === 'Stopped';
+  const reasonText = stopReason === 'TimedOut' ? 'the search hit its time limit' : 'the search was stopped';
+
+  if (!best) {
+    setStatus(stoppedEarly
+      ? `No route found before ${reasonText}. The nodes may still be reachable - try again.`
+      : 'No known or plausible route found between these nodes within the search bounds.', true);
+    return;
+  }
+
+  const total = 1 + alternatives.length;
+  setStatus(stoppedEarly
+    ? `Found ${total} candidate route${total === 1 ? '' : 's'} before ${reasonText} - showing the best found so far.`
+    : `Found ${total} candidate route${total === 1 ? '' : 's'}.`);
+  resultsEl.appendChild(renderRoute(best, true));
+  alternatives.forEach(r => resultsEl.appendChild(renderRoute(r, false)));
+  enterRouteMode();
+  selectRoute(0);
+}
+
+stopBtn.addEventListener('click', () => {
+  if (!activeSearchId) return;
+  stopBtn.disabled = true;
+  stopBtn.textContent = 'Stopping…';
+  fetch(`/api/route/stop?searchId=${encodeURIComponent(activeSearchId)}`, { method: 'POST' }).catch(() => {});
+});
 
 findBtn.addEventListener('click', async () => {
   if (!state.from || !state.to) return;
-  setStatus('Searching for routes…');
   resultsEl.innerHTML = '';
   renderedRoutes = [];
-  searchController = new AbortController();
   findBtn.hidden = true;
   stopBtn.hidden = false;
+  stopBtn.disabled = false;
+  stopBtn.textContent = 'Stop';
+
+  const searchId = crypto.randomUUID();
+  activeSearchId = searchId;
+  const searchStartedAt = Date.now();
+  let progress = { explored: 0, candidates: 0 };
+
+  const reportProgress = () => {
+    const elapsedS = Math.round((Date.now() - searchStartedAt) / 1000);
+    setStatus(`Searching for routes… ${elapsedS}s elapsed, ${progress.explored} node${progress.explored === 1 ? '' : 's'} explored, ${progress.candidates} candidate${progress.candidates === 1 ? '' : 's'} found so far.`);
+  };
+  setStatus('Searching for routes…');
+  const tickTimer = setInterval(reportProgress, 500);
 
   try {
     const params = new URLSearchParams({
       from: state.from.public_key, to: state.to.public_key,
       fromName: state.from.name || '', toName: state.to.name || '',
+      searchId,
     });
     if (state.from.lat != null) params.set('fromLat', state.from.lat);
     if (state.from.lon != null) params.set('fromLon', state.from.lon);
     if (state.to.lat != null) params.set('toLat', state.to.lat);
     if (state.to.lon != null) params.set('toLon', state.to.lon);
 
-    const res = await fetch(`/api/route?${params}`, { signal: searchController.signal });
+    const res = await fetch(`/api/route?${params}`);
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       setStatus(body.error || `Request failed (${res.status})`, true);
       return;
     }
-    const { best, alternatives } = await res.json();
-    if (!best) {
-      setStatus('No known or plausible route found between these nodes within the search bounds.', true);
-      return;
+
+    // The server streams one JSON object per line (newline-delimited) - a 'Progress' event after
+    // every node it explores, then exactly one 'Done' event with the final result. Reading it this
+    // way (instead of one `res.json()` at the end) is what lets the status line update live and lets
+    // the Stop button return a usable partial result instead of nothing.
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let readerDone = false;
+
+    while (!readerDone) {
+      const chunk = await reader.read();
+      readerDone = chunk.done;
+      if (chunk.value) buffer += decoder.decode(chunk.value, { stream: true });
+
+      let newlineIdx;
+      while ((newlineIdx = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, newlineIdx);
+        buffer = buffer.slice(newlineIdx + 1);
+        if (!line.trim()) continue;
+        const evt = JSON.parse(line);
+
+        if (evt.type === 'Progress') {
+          progress = { explored: evt.exploredCount ?? progress.explored, candidates: evt.candidatesFoundCount ?? progress.candidates };
+          reportProgress();
+        } else if (evt.type === 'Done') {
+          renderSearchResult(evt.result, evt.stopReason);
+        }
+      }
     }
-    const total = 1 + alternatives.length;
-    setStatus(`Found ${total} candidate route${total === 1 ? '' : 's'}.`);
-    resultsEl.appendChild(renderRoute(best, true));
-    alternatives.forEach(r => resultsEl.appendChild(renderRoute(r, false)));
-    enterRouteMode();
-    selectRoute(0);
   } catch (err) {
-    setStatus(err.name === 'AbortError' ? 'Search stopped.' : `Error: ${err.message}`, true);
+    setStatus(`Error: ${err.message}`, true);
   } finally {
+    clearInterval(tickTimer);
     stopBtn.hidden = true;
     findBtn.hidden = false;
-    searchController = null;
+    activeSearchId = null;
   }
 });
